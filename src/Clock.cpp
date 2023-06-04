@@ -4,10 +4,25 @@
 
 #include <limits>
 #include <iostream>
+#include "Clock.hpp"
 
 using namespace std::chrono_literals;
 
+Clock::Clock(WaiterFunction waiterFunction) 
+    : waiter{waiterFunction} {
+}
+
+void Clock::start() {
+    lastTickTime = std::chrono::steady_clock::now();
+}
+
 void Clock::waitForNextTick() {
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - lastTickTime);
+    if (elapsed < period) {
+        waiter(period - elapsed);
+    }
+    lastTickTime = std::chrono::steady_clock::now();
 }
 
 void Clock::setFrequency(const size_t frequencyHz) {

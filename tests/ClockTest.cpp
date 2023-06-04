@@ -6,7 +6,11 @@
 
 class ClockTestFixture : public testing::Test {
     public:
-    Clock clock;
+    Clock clock{[this](auto ns){ waitFor(ns); }};
+
+    private:
+    void waitFor(std::chrono::nanoseconds ns) {
+    }
 };
 
 TEST_F(ClockTestFixture, frequency1khzShouldBeSetCorrectly) {
