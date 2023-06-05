@@ -2,6 +2,7 @@
 #define SRC_C6202_HPP
 
 #include "src/RAM.hpp"
+#include "src/IClock.hpp"
 
 #include <array>
 #include <bitset>
@@ -9,15 +10,18 @@
 
 class C6202 {
     public:
+    C6202(IClock& clock, const RAM& memory);
+    void start();
     
     private:
     // Registers
     // https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
-    uint8_t A = 0x0;
-    uint8_t X = 0x0;
-    uint8_t Y = 0x0;
-    uint8_t SP = 0xff;
-    uint16_t PC = 0x0600;
+    IClock& clock;
+    uint8_t A;
+    uint8_t X;
+    uint8_t Y;
+    uint8_t SP;
+    uint16_t PC;
     union {
         struct {
             bool C : 1;
@@ -32,6 +36,9 @@ class C6202 {
         std::bitset<8> flags;
     };
     RAM memory;
+
+
+    void resetRegisters();
 };
 
 #endif  // SRC_C6202_HPP

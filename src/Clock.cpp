@@ -22,7 +22,7 @@ void Clock::waitForNextTick() {
     if (elapsed < period) {
         waiter(period - elapsed);
     }
-    lastTickTime = std::chrono::steady_clock::now();
+    lastTickTime += period;
 }
 
 void Clock::setFrequency(const size_t frequencyHz) {
