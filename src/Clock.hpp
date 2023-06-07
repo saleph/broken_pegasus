@@ -12,7 +12,7 @@ class Clock : public IClock {
     public:
     using WaiterFunction = std::function<void(std::chrono::nanoseconds)>;
     
-    Clock(WaiterFunction waiterFunction = [](auto ns){ std::this_thread::sleep_for(ns); });
+    Clock(WaiterFunction waiterFunction = [](auto ns){ std::this_thread::sleep_for(ns); }, const size_t frequencyHz = 1000000u);
     ~Clock() override = default;
     void start() override;
     void waitForNextTick() override;

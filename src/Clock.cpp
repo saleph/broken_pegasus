@@ -8,8 +8,9 @@
 
 using namespace std::chrono_literals;
 
-Clock::Clock(WaiterFunction waiterFunction) 
+Clock::Clock(WaiterFunction waiterFunction, const size_t frequencyHz) 
     : waiter{waiterFunction} {
+    setFrequency(frequencyHz);
 }
 
 void Clock::start() {

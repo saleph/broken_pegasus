@@ -1,29 +1,37 @@
 #include "src/C6202.hpp"
 
 #include <algorithm>
-#include "C6202.hpp"
+#include <tuple>
+
 
 C6202::C6202(IClock& clock, const RAM& memory)
     : clock{clock}, memory{memory} {
     resetRegisters();
 }
 
-void C6202::resetRegisters() {
-    A = 0x0;
-    X = 0x0;
-    Y = 0x0;
-    SP = 0xff;
-    PC = 0x0600;
-    C = false;
-    Z = false;
-    I = false;
-    D = false;
-    B = false;
-    __reserved = true;
-    V = false;
-    N = false;
+C6202::C6202(IClock &clock, const Program &program) 
+    : clock{clock}, memory{} {
+    resetRegisters();
+    memory = RAM{program.getProgram()};
 }
 
-void C6202::start() {
+void C6202::resetRegisters() {
+    reg = Registers{};
+}
 
+void C6202::run() {
+    while (true) {
+        const auto b = memory[reg.PC++];
+        if (b == 0u) {
+            return;
+        }
+    }
+}
+
+Registers C6202::getRegisters() const {
+    return reg;
+}
+
+RAM C6202::getMemory() const {
+    return memory;
 }
