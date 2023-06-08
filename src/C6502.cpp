@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <format>
+#include "C6502.hpp"
 
 static const bool DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING = false;
 
@@ -17,6 +18,23 @@ C6502::C6502(IClock &clock, const Program &program)
     : clock{clock}, memory{} {
     resetRegisters();
     memory = RAM{program.getProgram()};
+}
+
+// opcode: aaabbbcc The aaa and cc bits determine the opcode, 
+// and the bbb bits determine the addressing mode. cc determines the group
+uint8_t C6502::getInstuctionGroup(const uint8_t opcode) {
+    static const uint8_t instructionGroupMask = 0b00000011u;
+    return opcode & instructionGroupMask;
+}
+
+uint8_t C6502::getAddressingMode(const uint8_t opcode) {
+    static const uint8_t addresingModeMask = 0b00011100u;
+    return (opcode & addresingModeMask) >> 2;
+}
+
+uint8_t C6502::getInstructionType(const uint8_t opcode) {
+    static const uint8_t instructionTypeMask = 0b11100000u;
+    return (opcode & instructionTypeMask) >> 5;
 }
 
 void C6502::resetRegisters() {
@@ -56,7 +74,7 @@ bool C6502::runNextInstruction() {
     if (isBrkInstruction) {
         return false;
     }
-    switch (opcode & instructionGroupMask) {
+    switch (getInstuctionGroup(opcode)) {
         case 0b01: runGroupOneInstruction(opcode); break;
         case 0b10: runGroupTwoInstruction(opcode); break;
         case 0b00: runGroupThreeInstruction(opcode); break;
@@ -72,17 +90,17 @@ bool C6502::runNextInstruction() {
 
 void C6502::runGroupOneInstruction(const uint8_t opcode) {
     AddressingResult addressingResult;
-    switch (opcode & addresingModeMask) {
+    switch (getAddressingMode(opcode)) {
         case 0b000:	addressingResult = getAddressingIndirectZeroPageX(); break;
         case 0b001:	addressingResult = getAddressingZeroPage(); break;
         case 0b010:	addressingResult = getAddressingImmediate(); break;
         case 0b011:	addressingResult = getAddressingAbsolute(); break;
         case 0b100:	addressingResult = getAddressingIndirectZeroPageY(); break;
         case 0b101:	addressingResult = getAddressingZeroPageX(); break;
-        case 0b110:	addressingResult = getAddressingAbsoluteY(); break;
-        case 0b111:	addressingResult = getAddressingAbsoluteX(); break;
+        case 0b110:	addressingResult = getAddressingAbsoluteXY(reg.Y); break;
+        case 0b111:	addressingResult = getAddressingAbsoluteXY(reg.X); break;
     }
-    switch (opcode & instructionTypeMask) {
+    switch (getInstructionType(opcode)) {
         case 0b000: runORA(addressingResult); break;
         case 0b001: runAND(addressingResult); break;
         case 0b010: runEOR(addressingResult); break;
@@ -93,15 +111,6 @@ void C6502::runGroupOneInstruction(const uint8_t opcode) {
         case 0b111: runSBC(addressingResult); break;
     }
 }
-
-// 000	(zero page,X)
-// 001	zero page
-// 010	#immediate
-// 011	absolute
-// 100	(zero page),Y
-// 101	zero page,X
-// 110	absolute,Y
-// 111	absolute,X
 
 C6502::AddressingResult C6502::getAddressingIndirectZeroPageX() {
     // (zero page,X)
@@ -163,14 +172,22 @@ bool C6502::doesCrossPageBoundary(const uint16_t baseAddress, const uint16_t ind
 
 C6502::AddressingResult C6502::getAddressingZeroPageX() {
     // zero page,X
+    const auto zeroPageBaseAddress = accessMemory(reg.PC++);
+    const auto discardedUnindexedZeroPageAddressData = accessMemory(zeroPageBaseAddress);
+    (void)discardedUnindexedZeroPageAddressData;
+
+    const auto wrappedAroundIndexedAddressOnPageZero = static_cast<uint8_t>(zeroPageBaseAddress + reg.X);
+    const auto effectiveAddress = wrappedAroundIndexedAddressOnPageZero;
+    return MemoryAddress{effectiveAddress, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
-C6502::AddressingResult C6502::getAddressingAbsoluteY() {
-    // absolute,Y
-}
-
-C6502::AddressingResult C6502::getAddressingAbsoluteX() {
-    // absolute,X
+C6502::AddressingResult C6502::getAddressingAbsoluteXY(const uint8_t xOrYRegister) {
+    // absolute,X/Y
+    const auto lowHalfAddress = accessMemory(reg.PC++);
+    const auto highHalfAddress = accessMemory(reg.PC++);
+    const auto baseAddress = concatAddress(lowHalfAddress, highHalfAddress);
+    const auto indexedEffectiveAddress = static_cast<uint16_t>(baseAddress + xOrYRegister);
+    return MemoryAddress{indexedEffectiveAddress, doesCrossPageBoundary(baseAddress, indexedEffectiveAddress + 1)};
 }
 
 void C6502::runORA(const AddressingResult addressingResult) {

@@ -36,6 +36,7 @@ struct Registers {
     }
 };
 
+/// @brief CPU definition. I used mostly https://llx.com/Neil/a2/opcodes.html
 class C6502 {
     public:
     C6502(IClock& clock, const RAM& memory);
@@ -54,11 +55,6 @@ class C6502 {
     };
     enum class ImmediateValue : uint8_t {};
     using AddressingResult = std::variant<MemoryAddress, ImmediateValue>;
-    // opcode: aaabbbcc The aaa and cc bits determine the opcode, 
-    // and the bbb bits determine the addressing mode. cc determines the group
-    static const uint8_t instructionGroupMask   = 0b00000011u;
-    static const uint8_t addresingModeMask  = 0b00011100u;
-    static const uint8_t instructionTypeMask    = 0b11100000u;
 
     // Registers
     // https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
@@ -66,7 +62,9 @@ class C6502 {
     Registers reg = {};
     RAM memory;
 
-
+    static uint8_t getInstuctionGroup(const uint8_t opcode);
+    static uint8_t getAddressingMode(const uint8_t opcode);
+    static uint8_t getInstructionType(const uint8_t opcode);
     void resetRegisters();
     /// @brief ticks are happening when interaction with memory occurs.
     /// Also, when memory boundary is crossed when indexing (difference on bits 8-15): 
@@ -85,8 +83,7 @@ class C6502 {
     AddressingResult getAddressingAbsolute();
     AddressingResult getAddressingIndirectZeroPageY();
     AddressingResult getAddressingZeroPageX();
-    AddressingResult getAddressingAbsoluteY();
-    AddressingResult getAddressingAbsoluteX();
+    AddressingResult getAddressingAbsoluteXY(const uint8_t xOrYRegister);
     void runORA(const AddressingResult addressingResult);
     void runAND(const AddressingResult addressingResult);
     void runEOR(const AddressingResult addressingResult);
