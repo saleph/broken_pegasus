@@ -7,7 +7,7 @@
 
 #include <array>
 #include <bitset>
-#include <cstddef>
+#include <cstdint>
 #include <tuple>
 
 struct Registers {
@@ -39,9 +39,12 @@ class C6202 {
     public:
     C6202(IClock& clock, const RAM& memory);
     C6202(IClock& clock, const Program& program);
+
+    /// @brief It will run till first BRK instruction (0x00) is met
     void run();
+
     Registers getRegisters() const;
-    RAM getMemory() const;
+    const RAM& getMemory() const;
     
     private:
     // Registers
@@ -52,6 +55,12 @@ class C6202 {
 
 
     void resetRegisters();
+    bool isBreakInstructionMet() const;
+    void tick();
+    void runNextInstruction();
+    void runGroupOneInstruction(const uint8_t opcode);
+    void runGroupTwoInstruction(const uint8_t opcode);
+    void runGroupThreeInstruction(const uint8_t opcode);
 };
 
 #endif  // SRC_C6202_HPP

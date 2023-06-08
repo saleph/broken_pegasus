@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.5)
 project(broken_pegasus)
 
 set(CMAKE_TOOLCHAIN_FILE "conan_toolchain.cmake")
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_C_COMPILER "gcc-13")
+set(CMAKE_CXX_COMPILER "g++-13")
+
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 
 find_package(GTest REQUIRED)

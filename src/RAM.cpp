@@ -17,3 +17,8 @@ uint8_t& RAM::operator[](const size_t address) {
     assert(idx < SIZE && "Address out of range of RAM");
     return memory[address];
 }
+
+const uint8_t& RAM::operator[](const size_t address) const {
+    assert(idx < SIZE && "Address out of range of RAM");
+    return memory[address];
+}

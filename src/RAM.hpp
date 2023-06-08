@@ -5,7 +5,7 @@
 
 #include <array>
 #include <vector>
-#include <cstddef>
+#include <cstdint>
 
 class RAM {
     public:
@@ -14,6 +14,7 @@ class RAM {
     RAM(const std::array<uint8_t, SIZE>& memory);
 
     uint8_t& operator[](const size_t address);
+    const uint8_t& operator[](const size_t address) const;
     bool operator==(const RAM& other) const = default;
     auto begin() noexcept { return memory.begin(); }
     auto end() noexcept { return memory.end(); }
