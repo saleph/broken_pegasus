@@ -1,4 +1,4 @@
-#include "src/C6202.hpp"
+#include "src/C6502.hpp"
 #include "src/RAM.hpp"
 #include "src/Clock.hpp"
 
@@ -24,7 +24,7 @@ class C6202TestFixture : public testing::Test {
 TEST_F(C6202TestFixture, shouldSimpleProgramWorkProperly) {
     const auto program = Program{"a9 01 8d 00 02 a9 05 8d 01 02 a9 08 8d 02 02"};
     const auto memory = RAM{program};
-    auto cpu = C6202{clock, memory};
+    auto cpu = C6502{clock, memory};
     cpu.run();
 
     auto expectedMemory = memory;
