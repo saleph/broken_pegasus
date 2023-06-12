@@ -91,14 +91,14 @@ bool C6502::runNextInstruction() {
 void C6502::runGroupOneInstruction(const uint8_t opcode) {
     AddressingResult addressingResult;
     switch (getAddressingMode(opcode)) {
-        case 0b000:	addressingResult = getAddressingIndirectZeroPageX(); break;
-        case 0b001:	addressingResult = getAddressingZeroPage(); break;
-        case 0b010:	addressingResult = getAddressingImmediate(); break;
-        case 0b011:	addressingResult = getAddressingAbsolute(); break;
-        case 0b100:	addressingResult = getAddressingIndirectZeroPageY(); break;
-        case 0b101:	addressingResult = getAddressingZeroPageX(); break;
-        case 0b110:	addressingResult = getAddressingAbsoluteXY(reg.Y); break;
-        case 0b111:	addressingResult = getAddressingAbsoluteXY(reg.X); break;
+        case 0b000: addressingResult = getAddressingIndirectZeroPageX(); break;
+        case 0b001: addressingResult = getAddressingZeroPage(); break;
+        case 0b010: addressingResult = getAddressingImmediate(); break;
+        case 0b011: addressingResult = getAddressingAbsolute(); break;
+        case 0b100: addressingResult = getAddressingIndirectZeroPageY(); break;
+        case 0b101: addressingResult = getAddressingZeroPageX(); break;
+        case 0b110: addressingResult = getAddressingAbsoluteXY(reg.Y); break;
+        case 0b111: addressingResult = getAddressingAbsoluteXY(reg.X); break;
     }
     switch (getInstructionType(opcode)) {
         case 0b000: runORA(addressingResult); break;
@@ -122,7 +122,7 @@ C6502::AddressingResult C6502::getAddressingIndirectZeroPageX() {
     tick();
     const auto indirectAddress = readTwoByteAddressAtLocation(zeroPageEffectiveAddress);
     const auto effectiveAddress = readTwoByteAddressAtLocation(indirectAddress);
-    return MemoryAddress{effectiveAddress, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
+    return {MemoryAddress{effectiveAddress}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 uint16_t C6502::readTwoByteAddressAtLocation(const uint16_t address) {
@@ -138,13 +138,13 @@ uint16_t C6502::concatAddress(const uint16_t lowHalf, const uint16_t highHalf) c
 C6502::AddressingResult C6502::getAddressingZeroPage() {
     // zero page
     const auto effectiveAddress = accessMemory(reg.PC++);
-    return MemoryAddress{effectiveAddress, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
+    return {MemoryAddress{effectiveAddress}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 C6502::AddressingResult C6502::getAddressingImmediate() {
     // #immediate
     const auto immediateValue = accessMemory(reg.PC++);
-    return ImmediateValue{immediateValue};
+    return {ImmediateValue{immediateValue}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 C6502::AddressingResult C6502::getAddressingAbsolute() {
@@ -152,7 +152,7 @@ C6502::AddressingResult C6502::getAddressingAbsolute() {
     const auto lowHalfAddress = accessMemory(reg.PC++);
     const auto highHalfAddress = accessMemory(reg.PC++);
     const auto effectiveAddress = concatAddress(lowHalfAddress, highHalfAddress);
-    return MemoryAddress{effectiveAddress, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
+    return {MemoryAddress{effectiveAddress}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 C6502::AddressingResult C6502::getAddressingIndirectZeroPageY() {
@@ -161,7 +161,7 @@ C6502::AddressingResult C6502::getAddressingIndirectZeroPageY() {
     const auto indirectAddress = readTwoByteAddressAtLocation(indirectAddressLocationAtZeroPage);
     const auto indexedIndirectAddress = indirectAddress + reg.Y;
     const auto effectiveAddress = readTwoByteAddressAtLocation(indexedIndirectAddress);
-    return MemoryAddress{effectiveAddress, doesCrossPageBoundary(indirectAddress, indexedIndirectAddress + 1)};
+    return {MemoryAddress{effectiveAddress}, doesCrossPageBoundary(indirectAddress, indexedIndirectAddress + 1)};
 }
 
 bool C6502::doesCrossPageBoundary(const uint16_t baseAddress, const uint16_t indexedAddress) const {
@@ -178,7 +178,7 @@ C6502::AddressingResult C6502::getAddressingZeroPageX() {
 
     const auto wrappedAroundIndexedAddressOnPageZero = static_cast<uint8_t>(zeroPageBaseAddress + reg.X);
     const auto effectiveAddress = wrappedAroundIndexedAddressOnPageZero;
-    return MemoryAddress{effectiveAddress, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
+    return {MemoryAddress{effectiveAddress}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 C6502::AddressingResult C6502::getAddressingAbsoluteXY(const uint8_t xOrYRegister) {
@@ -187,23 +187,87 @@ C6502::AddressingResult C6502::getAddressingAbsoluteXY(const uint8_t xOrYRegiste
     const auto highHalfAddress = accessMemory(reg.PC++);
     const auto baseAddress = concatAddress(lowHalfAddress, highHalfAddress);
     const auto indexedEffectiveAddress = static_cast<uint16_t>(baseAddress + xOrYRegister);
-    return MemoryAddress{indexedEffectiveAddress, doesCrossPageBoundary(baseAddress, indexedEffectiveAddress + 1)};
+    return {MemoryAddress{indexedEffectiveAddress}, doesCrossPageBoundary(baseAddress, indexedEffectiveAddress + 1)};
 }
 
 void C6502::runORA(const AddressingResult addressingResult) {
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    reg.A |= operand;
+    reg.N = getNegativeSignBit(reg.A);
+    reg.Z = getZeroFlag(reg.A);
+}
 
+C6502::DataAndCrossPageBoundariesCrossing C6502::getValueFrom(const AddressingResult addressingResult) {
+    if (const auto memoryAddress = std::get_if<MemoryAddress>(&addressingResult.valueOrAddress); memoryAddress) {
+        return {memory[static_cast<uint16_t>(*memoryAddress)], addressingResult.didCrossPageBoundary};
+    }
+    if (const auto value = std::get_if<ImmediateValue>(&addressingResult.valueOrAddress); value) {
+        return {static_cast<uint8_t>(*value), addressingResult.didCrossPageBoundary};
+    }
+    throw std::invalid_argument("Unexpected type of AddressingResult");
+}
+
+bool C6502::getZeroFlag(const uint8_t result) const {
+    return result == 0;
+}
+
+bool C6502::getNegativeSignBit(const uint8_t result) const {
+    const auto signBit = uint8_t{0b1000'0000};
+    return result & signBit;
 }
 
 void C6502::runAND(const AddressingResult addressingResult) {
-
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    reg.A &= operand;
+    reg.N = getNegativeSignBit(reg.A);
+    reg.Z = getZeroFlag(reg.A);
 }
 
 void C6502::runEOR(const AddressingResult addressingResult) {
-
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    reg.A ^= operand;
+    reg.N = getNegativeSignBit(reg.A);
+    reg.Z = getZeroFlag(reg.A);
 }
 
 void C6502::runADC(const AddressingResult addressingResult) {
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    if (reg.D) {
+        performDecimalADC(operand);
+    } else {
+        const auto oldA = reg.A;
+        const auto fullResult = operand + reg.A + reg.C;
+        const auto trimmedResult = static_cast<uint8_t>(fullResult);
+        reg.A = trimmedResult;
+        reg.V = getOverflowFlag(oldA, fullResult);
+        reg.C = getCarryFlag(fullResult);
+        reg.N = getNegativeSignBit(trimmedResult);
+        reg.Z = getZeroFlag(trimmedResult);
+    }
+}
 
+void C6502::performDecimalADC(const uint8_t operand) {
+
+}
+
+bool C6502::getCarryFlag(const int result) const {
+    return result > std::numeric_limits<uint8_t>().max();
+}
+
+bool C6502::getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int result) const {
+    return getNegativeSignBit(accumulatorBeforeOperation) ^ getNegativeSignBit(result);
 }
 
 void C6502::runSTA(const AddressingResult addressingResult) {
