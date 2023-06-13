@@ -244,22 +244,39 @@ void C6502::runADC(const AddressingResult addressingResult) {
     if (didCrossPageBoundary) {
         tick();
     }
+    const auto oldA = reg.A;
+    auto fullResult = operand + reg.A + reg.C;
     if (reg.D) {
-        performDecimalADC(operand);
-    } else {
-        const auto oldA = reg.A;
-        const auto fullResult = operand + reg.A + reg.C;
-        const auto trimmedResult = static_cast<uint8_t>(fullResult);
-        reg.A = trimmedResult;
-        reg.V = getOverflowFlag(oldA, fullResult);
-        reg.C = getCarryFlag(fullResult);
-        reg.N = getNegativeSignBit(trimmedResult);
-        reg.Z = getZeroFlag(trimmedResult);
+        fullResult = normalizeBDCResult(fullResult);
     }
+    const auto trimmedResult = static_cast<uint8_t>(fullResult);
+    reg.A = trimmedResult;
+    reg.V = getOverflowFlag(oldA, fullResult);
+    reg.C = getCarryFlag(fullResult);
+    reg.N = getNegativeSignBit(trimmedResult);
+    reg.Z = getZeroFlag(trimmedResult);
 }
 
-void C6502::performDecimalADC(const uint8_t operand) {
-
+int C6502::normalizeBDCResult(const int notNormalizedResult) const {
+    const auto lowerDigitMask = 0b0000'1111;
+    const auto higherDigitOffset = 4;
+    const auto higherDigitMask = lowerDigitMask << higherDigitOffset;
+    const auto lowerDigit = notNormalizedResult & lowerDigitMask;
+    auto higherDigit = notNormalizedResult & higherDigitMask;
+    auto normalizedResult = 0;
+    if (lowerDigit < 10) {
+        normalizedResult += lowerDigit;
+    } else {
+        normalizedResult += lowerDigit - 10;
+        higherDigit += 1 << higherDigitOffset;
+    }
+    if (higherDigit < 10) {
+        normalizedResult += higherDigit;
+    } else {
+        normalizedResult += higherDigit - (10 << higherDigitOffset);
+        normalizedResult += 1 << (higherDigitOffset * 2);
+    }
+    return normalizedResult;
 }
 
 bool C6502::getCarryFlag(const int result) const {

@@ -115,7 +115,7 @@ class C6502 {
     bool getNegativeSignBit(const uint8_t result) const;
     bool getCarryFlag(const int result) const;
     bool getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int result) const;
-    void performDecimalADC(const uint8_t operand);
+    int normalizeBDCResult(const int notNormalizedResult) const;
     void runGroupTwoInstruction(const uint8_t opcode);
     void runGroupThreeInstruction(const uint8_t opcode);
 };
