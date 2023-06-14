@@ -288,19 +288,49 @@ bool C6502::getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int 
 }
 
 void C6502::runSTA(const AddressingResult addressingResult) {
-
+    const auto address = std::get<MemoryAddress>(addressingResult.valueOrAddress);
+    // boundary crossing protection - ticks always, even if not crossing when storing data
+    tick();
+    memory[static_cast<uint16_t>(address)] = reg.A;
 }
 
 void C6502::runLDA(const AddressingResult addressingResult) {
-
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    reg.A = operand;
+    reg.N = getNegativeSignBit(reg.A);
+    reg.Z = getZeroFlag(reg.A);
 }
 
 void C6502::runCMP(const AddressingResult addressingResult) {
-
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    const auto substractionResult = reg.A - operand;
+    reg.N = getNegativeSignBit(substractionResult);
+    reg.Z = getZeroFlag(substractionResult);
+    reg.C = getCarryFlag(substractionResult);
 }
 
 void C6502::runSBC(const AddressingResult addressingResult) {
-
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    const auto oldA = reg.A;
+    auto fullResult = reg.A - operand + reg.C;
+    if (reg.D) {
+        fullResult = normalizeBDCResult(fullResult);
+    }
+    const auto trimmedResult = static_cast<uint8_t>(fullResult);
+    reg.A = trimmedResult;
+    reg.V = getOverflowFlag(oldA, fullResult);
+    reg.C = getCarryFlag(fullResult);
+    reg.N = getNegativeSignBit(trimmedResult);
+    reg.Z = getZeroFlag(trimmedResult);
 }
 
 void C6502::runGroupTwoInstruction(const uint8_t opcode) {
