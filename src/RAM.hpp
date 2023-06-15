@@ -20,6 +20,7 @@ class RAM {
     auto end() noexcept { return memory.end(); }
     auto cbegin() const noexcept { return memory.cbegin(); }
     auto cend() const noexcept { return memory.cend(); }
+    const std::array<uint8_t, SIZE>& getUnderlayingArray() const { return memory; }
 
     private:
     static constexpr size_t CODE_ORIGIN_LOCATION = 0x0600;

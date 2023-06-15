@@ -1,5 +1,7 @@
 #include "src/C6502.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <tuple>
 #include <stdexcept>
@@ -50,9 +52,10 @@ const RAM& C6502::getMemory() const {
 }
 
 void C6502::run() {
+    spdlog::trace("Starting CPU");
     resetRegisters();
     clock.start();
-    while (!runNextInstruction()) {
+    while (runNextInstruction()) {
         ;
     }
 }
@@ -72,6 +75,7 @@ bool C6502::runNextInstruction() {
     ++reg.PC;
     const auto isBrkInstruction = opcode == 0x00u;
     if (isBrkInstruction) {
+        spdlog::trace("BRK met");
         return false;
     }
     switch (getInstuctionGroup(opcode)) {
@@ -113,7 +117,7 @@ void C6502::runGroupOneInstruction(const uint8_t opcode) {
 }
 
 C6502::AddressingResult C6502::getAddressingIndirectZeroPageX() {
-    // (zero page,X)
+    spdlog::trace("zero page,X)");
     const auto zeroPageBaseAddress = accessMemory(reg.PC++);
     const auto discardedUnindexedZeroPageAddressData = accessMemory(zeroPageBaseAddress);
     (void)discardedUnindexedZeroPageAddressData;
@@ -136,19 +140,19 @@ uint16_t C6502::concatAddress(const uint16_t lowHalf, const uint16_t highHalf) c
 }
 
 C6502::AddressingResult C6502::getAddressingZeroPage() {
-    // zero page
+    spdlog::trace("zero page");
     const auto effectiveAddress = accessMemory(reg.PC++);
     return {MemoryAddress{effectiveAddress}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 C6502::AddressingResult C6502::getAddressingImmediate() {
-    // #immediate
+    spdlog::trace("#immediate");
     const auto immediateValue = accessMemory(reg.PC++);
     return {ImmediateValue{immediateValue}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
 }
 
 C6502::AddressingResult C6502::getAddressingAbsolute() {
-    // absolute
+    spdlog::trace("absolute");
     const auto lowHalfAddress = accessMemory(reg.PC++);
     const auto highHalfAddress = accessMemory(reg.PC++);
     const auto effectiveAddress = concatAddress(lowHalfAddress, highHalfAddress);
@@ -156,7 +160,7 @@ C6502::AddressingResult C6502::getAddressingAbsolute() {
 }
 
 C6502::AddressingResult C6502::getAddressingIndirectZeroPageY() {
-    // (zero page),Y
+    spdlog::trace("(zero page),Y");
     const auto indirectAddressLocationAtZeroPage = accessMemory(reg.PC++);
     const auto indirectAddress = readTwoByteAddressAtLocation(indirectAddressLocationAtZeroPage);
     const auto indexedIndirectAddress = indirectAddress + reg.Y;
@@ -171,7 +175,7 @@ bool C6502::doesCrossPageBoundary(const uint16_t baseAddress, const uint16_t ind
 }
 
 C6502::AddressingResult C6502::getAddressingZeroPageX() {
-    // zero page,X
+    spdlog::trace("zero page,X");
     const auto zeroPageBaseAddress = accessMemory(reg.PC++);
     const auto discardedUnindexedZeroPageAddressData = accessMemory(zeroPageBaseAddress);
     (void)discardedUnindexedZeroPageAddressData;
@@ -182,7 +186,7 @@ C6502::AddressingResult C6502::getAddressingZeroPageX() {
 }
 
 C6502::AddressingResult C6502::getAddressingAbsoluteXY(const uint8_t xOrYRegister) {
-    // absolute,X/Y
+    spdlog::trace("absolute,X/Y");
     const auto lowHalfAddress = accessMemory(reg.PC++);
     const auto highHalfAddress = accessMemory(reg.PC++);
     const auto baseAddress = concatAddress(lowHalfAddress, highHalfAddress);
@@ -191,6 +195,7 @@ C6502::AddressingResult C6502::getAddressingAbsoluteXY(const uint8_t xOrYRegiste
 }
 
 void C6502::runORA(const AddressingResult addressingResult) {
+    spdlog::trace("ORA");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
@@ -220,6 +225,7 @@ bool C6502::getNegativeSignBit(const uint8_t result) const {
 }
 
 void C6502::runAND(const AddressingResult addressingResult) {
+    spdlog::trace("AND");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
@@ -230,6 +236,7 @@ void C6502::runAND(const AddressingResult addressingResult) {
 }
 
 void C6502::runEOR(const AddressingResult addressingResult) {
+    spdlog::trace("EOR");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
@@ -240,6 +247,7 @@ void C6502::runEOR(const AddressingResult addressingResult) {
 }
 
 void C6502::runADC(const AddressingResult addressingResult) {
+    spdlog::trace("ADC");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
@@ -288,6 +296,7 @@ bool C6502::getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int 
 }
 
 void C6502::runSTA(const AddressingResult addressingResult) {
+    spdlog::trace("STA");
     const auto address = std::get<MemoryAddress>(addressingResult.valueOrAddress);
     // boundary crossing protection - ticks always, even if not crossing when storing data
     tick();
@@ -295,6 +304,7 @@ void C6502::runSTA(const AddressingResult addressingResult) {
 }
 
 void C6502::runLDA(const AddressingResult addressingResult) {
+    spdlog::trace("LDA");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
@@ -305,6 +315,7 @@ void C6502::runLDA(const AddressingResult addressingResult) {
 }
 
 void C6502::runCMP(const AddressingResult addressingResult) {
+    spdlog::trace("CMP");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
@@ -316,12 +327,13 @@ void C6502::runCMP(const AddressingResult addressingResult) {
 }
 
 void C6502::runSBC(const AddressingResult addressingResult) {
+    spdlog::trace("SBC");
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
     }
     const auto oldA = reg.A;
-    auto fullResult = reg.A - operand + reg.C;
+    auto fullResult = reg.A + static_cast<uint8_t>(~operand) + reg.C;
     if (reg.D) {
         fullResult = normalizeBDCResult(fullResult);
     }
@@ -334,7 +346,9 @@ void C6502::runSBC(const AddressingResult addressingResult) {
 }
 
 void C6502::runGroupTwoInstruction(const uint8_t opcode) {
+    spdlog::trace("Group two instruction: {:x}", opcode);
 }
 
 void C6502::runGroupThreeInstruction(const uint8_t opcode) {
+    spdlog::trace("Group three instruction: {:x}", opcode);
 }
