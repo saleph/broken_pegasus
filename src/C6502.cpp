@@ -298,9 +298,8 @@ bool C6502::getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int 
 void C6502::runSTA(const AddressingResult addressingResult) {
     spdlog::trace("STA");
     const auto address = std::get<MemoryAddress>(addressingResult.valueOrAddress);
-    // boundary crossing protection - ticks always, even if not crossing when storing data
-    tick();
     memory[static_cast<uint16_t>(address)] = reg.A;
+    tick();
 }
 
 void C6502::runLDA(const AddressingResult addressingResult) {

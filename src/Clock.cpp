@@ -9,7 +9,7 @@
 using namespace std::chrono_literals;
 
 Clock::Clock(WaiterFunction waiterFunction, const size_t frequencyHz) 
-    : waiter{waiterFunction} {
+    : waiter{std::move(waiterFunction)} {
     setFrequency(frequencyHz);
 }
 
@@ -20,9 +20,7 @@ void Clock::start() {
 void Clock::waitForNextTick() {
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - lastTickTime);
-    if (elapsed < period) {
-        waiter(period - elapsed);
-    }
+    waiter(period - elapsed);
     lastTickTime += period;
 }
 

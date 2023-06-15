@@ -12,6 +12,7 @@
 class C6202TestFixture : public testing::Test {
     public:
     Clock clock{[this](auto ns){ waitFor(ns); }};
+    unsigned int ticks = 0u;
 
     void SetUp() override {
         spdlog::set_level(spdlog::level::trace);
@@ -23,6 +24,8 @@ class C6202TestFixture : public testing::Test {
 
     private:
     void waitFor(std::chrono::nanoseconds ns) {
+        ++ticks;
+        spdlog::info("tick {:02}", ticks);
     }
 };
 
@@ -38,12 +41,13 @@ MATCHER_P(RamMatcher, otherRam, "") {
     return theSame;
 }
 
-// LDA #$01
-// STA $0200
-// LDA #$05
-// STA $0201
-// LDA #$08
-// STA $0202
+// LDA #$01 # 2 ticks
+// STA $0200 # 4 ticks
+// LDA #$05 # 2 ticks
+// STA $0201 # 4 ticks
+// LDA #$08 # 2 ticks
+// STA $0202 # 4 ticks
+// read 1 byte 0x00 # 1 tick
 TEST_F(C6202TestFixture, shouldSimpleProgramWorkProperly) {
     const auto program = Program{"a9 01 8d 00 02 a9 05 8d 01 02 a9 08 8d 02 02"};
     const auto memory = RAM{program};
@@ -60,4 +64,5 @@ TEST_F(C6202TestFixture, shouldSimpleProgramWorkProperly) {
     expectedRegs.A = 0x08u;
     expectedRegs.PC = 0x0610u;
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
+    EXPECT_EQ(19u, ticks);
 }
