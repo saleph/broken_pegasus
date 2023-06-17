@@ -10,7 +10,9 @@
 class RAM {
     public:
     static constexpr size_t SIZE = 1 << 16;
-    RAM(const Program& program = {});
+    RAM() = default;
+    RAM(const RAM& other) = default;
+    RAM(const Program& program);
     RAM(const std::array<uint8_t, SIZE>& memory);
 
     uint8_t& operator[](const size_t address);

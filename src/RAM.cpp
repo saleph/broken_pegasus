@@ -3,7 +3,8 @@
 #include <cassert>
 #include <algorithm>
 
-RAM::RAM(const Program& program) {
+RAM::RAM(const Program& program)
+    : memory{} {
     const auto& hexdump = program.getProgram();
     assert(hexdump.size() > (SIZE - CODE_ORIGIN_LOCATION) && "Program leaks outside of available RAM");
     std::copy(hexdump.begin(), hexdump.end(), memory.begin() + CODE_ORIGIN_LOCATION);

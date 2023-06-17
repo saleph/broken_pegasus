@@ -5,7 +5,7 @@ set(CMAKE_TOOLCHAIN_FILE "conan_toolchain.cmake")
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_C_COMPILER "gcc-13")
 set(CMAKE_CXX_COMPILER "g++-13")
-set(CMAKE_CXX_FLAGS "-g")
+set(CMAKE_CXX_FLAGS "-g -Wall")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 

@@ -66,3 +66,21 @@ TEST_F(C6202TestFixture, shouldSimpleProgramWorkProperly) {
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
     EXPECT_EQ(19u, ticks);
 }
+
+// LDA #$01
+// STA $0200
+TEST_F(C6202TestFixture, shouldAbsoluteAddressingWorkCorrectly) {
+    const auto program = Program{"a9 01 8d 00 02"};
+    const auto memory = RAM{program};
+    auto cpu = C6502{clock, memory};
+    cpu.run();
+
+    auto expectedMemory = memory;
+    expectedMemory[0x0200] = 0x01u;
+    EXPECT_THAT(expectedMemory, RamMatcher(cpu.getMemory()));
+
+    Registers expectedRegs;
+    expectedRegs.A = 0x01u;
+    expectedRegs.PC = 0x0606u;
+    EXPECT_EQ(expectedRegs, cpu.getRegisters());
+}
