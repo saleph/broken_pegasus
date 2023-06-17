@@ -9,3 +9,8 @@ TEST(StupidTests, negationResult) {
 TEST(StupidTests, negativeChrono) {
     ASSERT_EQ(-5, std::chrono::nanoseconds{-5}.count());
 }
+
+TEST(StupidTests, shiftRightUint8) {
+    const auto v = uint8_t{0b1000'0000};
+    ASSERT_EQ(0b0100'0000, v >> 1);
+}

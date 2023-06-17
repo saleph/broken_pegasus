@@ -345,7 +345,117 @@ void C6502::runSBC(const AddressingResult addressingResult) {
 }
 
 void C6502::runGroupTwoInstruction(const uint8_t opcode) {
-    spdlog::trace("Group two instruction: {:x}", opcode);
+    AddressingResult addressingResult;
+    switch (getAddressingMode(opcode)) {
+        case 0b000: addressingResult = getAddressingImmediate(); break;
+        case 0b001: addressingResult = getAddressingZeroPage(); break;
+        case 0b010: addressingResult = getAddressingAccumulator(); break;
+        case 0b011: addressingResult = getAddressingAbsolute(); break;
+        case 0b101: addressingResult = getAddressingZeroPageX(); break;
+        case 0b111: addressingResult = getAddressingAbsoluteXY(reg.X); break;
+        case 0b100:
+        case 0b110:
+            throw std::runtime_error(std::format("Wrong addressing mode: 0b{:03b} for group two instruction", getAddressingMode(opcode)));
+            break;
+    }
+    switch (getInstructionType(opcode)) {
+        case 0b000: runASL(addressingResult); break;
+        case 0b001: runROL(addressingResult); break;
+        case 0b010: runLSR(addressingResult); break;
+        case 0b011: runROR(addressingResult); break;
+        case 0b100: runSTX(addressingResult); break;
+        case 0b101: runLDX(addressingResult); break;
+        case 0b110: runDEC(addressingResult); break;
+        case 0b111: runINC(addressingResult); break;
+    }
+}
+
+C6502::AddressingResult C6502::getAddressingAccumulator() {
+    spdlog::trace("accumulator");
+    return {UseAccumulator{}, DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING};
+}
+
+void C6502::runASL(const AddressingResult addressingResult) {
+    spdlog::trace("ASL");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    reg.C = static_cast<bool>((operandee & 0b1000'0000) >> 7);
+    operandee <<= 1;
+    reg.N = getNegativeSignBit(operandee);
+    reg.Z = getZeroFlag(operandee);
+}
+
+uint8_t& C6502::getAccumulatorOrMemoryReference(const AddressingResult addressingResult) {
+    if (const auto value = std::get_if<UseAccumulator>(&addressingResult.valueOrAddress); value) {
+        tick(); // discarded byte read right after opcode
+        return reg.A;
+    }
+    if (const auto value = std::get_if<MemoryAddress>(&addressingResult.valueOrAddress); value) {
+        return accessMemory(static_cast<uint16_t>(*value));
+    }
+    throw std::invalid_argument("Unexpected type of AddressingResult");
+}
+
+void C6502::runROL(const AddressingResult addressingResult) {
+    spdlog::trace("ROL");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    const auto bit7 = static_cast<uint8_t>((operandee & 0b1000'0000) >> 7);
+    operandee = (operandee << 1) | bit7;
+    reg.N = getNegativeSignBit(operandee);
+    reg.Z = getZeroFlag(operandee);
+}
+
+void C6502::runLSR(const AddressingResult addressingResult) {
+    spdlog::trace("LSR");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    reg.C = static_cast<bool>(operandee & 0b0000'0001);
+    operandee >>= 1;
+    reg.N = getNegativeSignBit(operandee);
+    reg.Z = getZeroFlag(operandee);
+}
+
+void C6502::runROR(const AddressingResult addressingResult) {
+    spdlog::trace("ROR");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    const auto bit0 = static_cast<uint8_t>(operandee & 0b0000'0001);
+    operandee = (operandee >> 1) | (reg.C << 7);
+    reg.C = bit0;
+    reg.N = getNegativeSignBit(operandee);
+    reg.Z = getZeroFlag(operandee);
+}
+
+void C6502::runSTX(const AddressingResult addressingResult) {
+    spdlog::trace("STX");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    operandee = reg.X;
+}
+
+void C6502::runLDX(const AddressingResult addressingResult) {
+    spdlog::trace("LDX");
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    reg.X = operand;
+    reg.N = getNegativeSignBit(operand);
+    reg.Z = getZeroFlag(operand);
+}
+
+void C6502::runDEC(const AddressingResult addressingResult) {
+    spdlog::trace("DEC");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    --operandee;
+    tick();
+    reg.N = getNegativeSignBit(operandee);
+    reg.Z = getZeroFlag(operandee);
+}
+
+void C6502::runINC(const AddressingResult addressingResult) {
+    spdlog::trace("INC");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    ++operandee;
+    tick();
+    reg.N = getNegativeSignBit(operandee);
+    reg.Z = getZeroFlag(operandee);
 }
 
 void C6502::runGroupThreeInstruction(const uint8_t opcode) {

@@ -84,3 +84,42 @@ TEST_F(C6202TestFixture, shouldAbsoluteAddressingWorkCorrectly) {
     expectedRegs.PC = 0x0606u;
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
 }
+
+// LDA #$01
+// STA $02
+TEST_F(C6202TestFixture, shouldZeroPageAddressingWorkCorrectly) {
+    const auto program = Program{"a9 01 85 02"};
+    const auto memory = RAM{program};
+    auto cpu = C6502{clock, memory};
+    cpu.run();
+
+    auto expectedMemory = memory;
+    expectedMemory[0x02] = 0x01u;
+    EXPECT_THAT(expectedMemory, RamMatcher(cpu.getMemory()));
+
+    Registers expectedRegs;
+    expectedRegs.A = 0x01u;
+    expectedRegs.PC = 0x0605u;
+    EXPECT_EQ(expectedRegs, cpu.getRegisters());
+}
+
+// LDX #$02
+// LDA #$aa  ;A is $aa
+// STA $fe,X ;Store the value of A at memory location $00
+TEST_F(C6202TestFixture, shouldZeroPageIndexedAddressingWorkCorrectly) {
+    const auto program = Program{"a2 02 a9 aa 95 fe"};
+    const auto memory = RAM{program};
+    auto cpu = C6502{clock, memory};
+    cpu.run();
+
+    auto expectedMemory = memory;
+    expectedMemory[0x00] = 0xAAu;
+    EXPECT_THAT(expectedMemory, RamMatcher(cpu.getMemory()));
+
+    Registers expectedRegs;
+    expectedRegs.A = 0xAAu;
+    expectedRegs.X = 0x02;
+    expectedRegs.PC = 0x0607u;
+    EXPECT_EQ(expectedRegs, cpu.getRegisters());
+}
+

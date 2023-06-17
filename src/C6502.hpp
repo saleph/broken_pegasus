@@ -63,7 +63,8 @@ class C6502 {
     private:
     enum class MemoryAddress : uint16_t {};
     enum class ImmediateValue : uint8_t {};
-    using ValueOrAddress = std::variant<MemoryAddress, ImmediateValue>;
+    enum class UseAccumulator : uint8_t {};
+    using ValueOrAddress = std::variant<MemoryAddress, ImmediateValue, UseAccumulator>;
     struct AddressingResult {
         ValueOrAddress valueOrAddress;
         bool didCrossPageBoundary;
@@ -94,6 +95,7 @@ class C6502 {
     uint16_t concatAddress(const uint16_t lowHalf, const uint16_t highHalf) const;
     DataAndCrossPageBoundariesCrossing getValueFrom(const AddressingResult addressingResult);
     bool runNextInstruction();
+
     void runGroupOneInstruction(const uint8_t opcode);
     AddressingResult getAddressingIndirectZeroPageX();
     AddressingResult getAddressingZeroPage();
@@ -116,7 +118,18 @@ class C6502 {
     bool getCarryFlag(const int result) const;
     bool getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int result) const;
     int normalizeBDCResult(const int notNormalizedResult) const;
+
     void runGroupTwoInstruction(const uint8_t opcode);
+    AddressingResult getAddressingAccumulator();
+    void runASL(const AddressingResult addressingResult);
+    void runROL(const AddressingResult addressingResult);
+    void runLSR(const AddressingResult addressingResult);
+    void runROR(const AddressingResult addressingResult);
+    void runSTX(const AddressingResult addressingResult);
+    void runLDX(const AddressingResult addressingResult);
+    void runDEC(const AddressingResult addressingResult);
+    void runINC(const AddressingResult addressingResult);
+    uint8_t& getAccumulatorOrMemoryReference(const AddressingResult addressingResult);
     void runGroupThreeInstruction(const uint8_t opcode);
 };
 
