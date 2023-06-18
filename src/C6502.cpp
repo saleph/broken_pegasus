@@ -78,6 +78,10 @@ bool C6502::runNextInstruction() {
         spdlog::trace("BRK met");
         return false;
     }
+    if (opcode & 0b0001'0000u) {
+        runBranchInstruction(opcode);
+        return true;
+    }
     switch (getInstuctionGroup(opcode)) {
         case 0b01: runGroupOneInstruction(opcode); break;
         case 0b10: runGroupTwoInstruction(opcode); break;
@@ -90,6 +94,49 @@ bool C6502::runNextInstruction() {
             break;
     }
     return true;
+}
+
+void C6502::runBranchInstruction(const uint8_t opcode) {
+    // The conditional branch instructions all have the form xxy10000. The flag
+    // indicated by xx is compared with y, and the branch is taken if they are equal.
+    const auto xxFlagType = (opcode & 0b1100'0000) >> 6;
+    const auto yExpectedValue = static_cast<bool>((opcode & 0b0010'0000) >> 5);
+    switch (xxFlagType) {
+        case 0b00:
+            spdlog::trace("B{}", yExpectedValue ? "MI" : "PL");
+            runConditionalJump(reg.N, yExpectedValue); 
+            break; // negative
+        case 0b01:
+            spdlog::trace("BV{}", yExpectedValue ? "S" : "C");
+            runConditionalJump(reg.V, yExpectedValue); 
+            break; // overflow
+        case 0b10:
+            spdlog::trace("BC{}", yExpectedValue ? "S" : "C");
+            runConditionalJump(reg.C, yExpectedValue); 
+            break; // carry
+        case 0b11:
+            spdlog::trace("B{}", yExpectedValue ? "EQ" : "NE");
+            runConditionalJump(reg.Z, yExpectedValue); 
+            break; // zero
+    }
+}
+
+void C6502::runConditionalJump(const bool flag, const bool expectedValueOfTheFlag) {
+    spdlog::trace("Conditional branch: flag={}, expected={}", flag, expectedValueOfTheFlag);
+    const auto offset = accessMemory(reg.PC);
+    ++reg.PC;
+    if (flag != expectedValueOfTheFlag) {
+        return;
+    }
+    const auto newPC = static_cast<uint16_t>(reg.PC + offset);
+    const auto pageNumberMask = uint16_t{0xFF00u};
+    const auto oldPCPageNumber = reg.PC & pageNumberMask;
+    const auto newPCPageNumber = newPC & pageNumberMask;
+    if (oldPCPageNumber != newPCPageNumber) {
+        // page boundary crossing
+        tick();
+    }
+    reg.PC = newPC;
 }
 
 void C6502::runGroupOneInstruction(const uint8_t opcode) {
@@ -221,7 +268,7 @@ bool C6502::getZeroFlag(const uint8_t result) const {
 
 bool C6502::getNegativeSignBit(const uint8_t result) const {
     const auto signBit = uint8_t{0b1000'0000};
-    return result & signBit;
+    return (result & signBit) >> 7;
 }
 
 void C6502::runAND(const AddressingResult addressingResult) {
@@ -315,11 +362,15 @@ void C6502::runLDA(const AddressingResult addressingResult) {
 
 void C6502::runCMP(const AddressingResult addressingResult) {
     spdlog::trace("CMP");
+    compareRegister(reg.A, addressingResult);
+}
+
+void C6502::compareRegister(const uint8_t regValue, const AddressingResult addressingResult) {
     const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
     if (didCrossPageBoundary) {
         tick();
     }
-    const auto substractionResult = reg.A - operand;
+    const auto substractionResult = regValue - operand;
     reg.N = getNegativeSignBit(substractionResult);
     reg.Z = getZeroFlag(substractionResult);
     reg.C = getCarryFlag(substractionResult);
@@ -459,5 +510,89 @@ void C6502::runINC(const AddressingResult addressingResult) {
 }
 
 void C6502::runGroupThreeInstruction(const uint8_t opcode) {
-    spdlog::trace("Group three instruction: {:x}", opcode);
+    AddressingResult addressingResult;
+    switch (getAddressingMode(opcode)) {
+        case 0b000: addressingResult = getAddressingImmediate(); break;
+        case 0b001: addressingResult = getAddressingZeroPage(); break;
+        case 0b011: addressingResult = getAddressingAbsolute(); break;
+        case 0b101: addressingResult = getAddressingZeroPageX(); break;
+        case 0b111: addressingResult = getAddressingAbsoluteXY(reg.X); break;
+        case 0b010:
+        case 0b100:
+        case 0b110:
+            throw std::runtime_error(std::format("Wrong addressing mode: 0b{:03b} for group three instruction", getAddressingMode(opcode)));
+            break;
+    }
+    switch (getInstructionType(opcode)) {
+        case 0b001: runBIT(addressingResult); break;
+        case 0b010: runJMP(std::get<MemoryAddress>(addressingResult.valueOrAddress)); break;
+        case 0b011: runJMPabsIndirect(addressingResult); break;
+        case 0b100: runSTY(addressingResult); break;
+        case 0b101: runLDY(addressingResult); break;
+        case 0b110: runCPY(addressingResult); break;
+        case 0b111: runCPX(addressingResult); break;
+        case 0b000:
+            throw std::runtime_error(std::format("Unknown instruction: 0b{:03b} for group three", getInstructionType(opcode)));
+            break;
+    }
+}
+
+void C6502::runBIT(const AddressingResult addressingResult) {
+    spdlog::trace("BIT");
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    (void)didCrossPageBoundary;
+    reg.Z = getZeroFlag(operand & reg.A);
+    reg.N = getNegativeSignBit(operand);
+    reg.V = (operand & 0b0100'0000) >> 6;
+}
+
+void C6502::runJMP(const MemoryAddress address) {
+    spdlog::trace("JMP to {:#04x}", static_cast<uint16_t>(address));
+    reg.PC = static_cast<uint16_t>(address);
+}
+
+void C6502::runJMPabsIndirect(const AddressingResult addressingResult) {
+    spdlog::trace("JMP indirect");
+    const auto indirectAddress = static_cast<uint16_t>(std::get<MemoryAddress>(addressingResult.valueOrAddress));
+    auto address = uint16_t{};
+    if ((indirectAddress & 0x00FFu) != 0x00FFu) {
+        address = readTwoByteAddressAtLocation(indirectAddress);
+    } else {
+        // http://6502.org/tutorials/6502opcodes.html#JMP
+        // if address $3000 contains $40, $30FF contains $80, and $3100 contains $50, the result of JMP ($30FF)
+        // will be a transfer of control to $4080 rather than $5080 as you intended i.e. the 6502 took the low 
+        // byte of the address from $30FF and the high byte from $3000. 
+        const auto lowHalf = accessMemory(indirectAddress);
+        const auto firstAddressOfThePage = indirectAddress & 0xFF00u;
+        const auto highHalf = accessMemory(firstAddressOfThePage);
+        address = concatAddress(lowHalf, highHalf);
+    }
+    runJMP(MemoryAddress{address});
+}
+
+void C6502::runSTY(const AddressingResult addressingResult) {
+    spdlog::trace("STY");
+    auto& operandee = getAccumulatorOrMemoryReference(addressingResult);
+    operandee = reg.Y;
+}
+
+void C6502::runLDY(const AddressingResult addressingResult) {
+    spdlog::trace("LDY");
+    const auto [operand, didCrossPageBoundary] = getValueFrom(addressingResult);
+    if (didCrossPageBoundary) {
+        tick();
+    }
+    reg.Y = operand;
+    reg.N = getNegativeSignBit(operand);
+    reg.Z = getZeroFlag(operand);
+}
+
+void C6502::runCPY(const AddressingResult addressingResult) {
+    spdlog::trace("CPY");
+    compareRegister(reg.Y, addressingResult);
+}
+
+void C6502::runCPX(const AddressingResult addressingResult) {
+    spdlog::trace("CPX");
+    compareRegister(reg.X, addressingResult);
 }

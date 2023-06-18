@@ -96,6 +96,9 @@ class C6502 {
     DataAndCrossPageBoundariesCrossing getValueFrom(const AddressingResult addressingResult);
     bool runNextInstruction();
 
+    void runBranchInstruction(const uint8_t opcode);
+    void runConditionalJump(const bool flag, const bool expectedValueOfTheFlag);
+
     void runGroupOneInstruction(const uint8_t opcode);
     AddressingResult getAddressingIndirectZeroPageX();
     AddressingResult getAddressingZeroPage();
@@ -118,6 +121,7 @@ class C6502 {
     bool getCarryFlag(const int result) const;
     bool getOverflowFlag(const uint8_t accumulatorBeforeOperation, const int result) const;
     int normalizeBDCResult(const int notNormalizedResult) const;
+    void compareRegister(const uint8_t regValue, const AddressingResult addressingResult);
 
     void runGroupTwoInstruction(const uint8_t opcode);
     AddressingResult getAddressingAccumulator();
@@ -130,7 +134,15 @@ class C6502 {
     void runDEC(const AddressingResult addressingResult);
     void runINC(const AddressingResult addressingResult);
     uint8_t& getAccumulatorOrMemoryReference(const AddressingResult addressingResult);
+
     void runGroupThreeInstruction(const uint8_t opcode);
+    void runBIT(const AddressingResult addressingResult);
+    void runJMP(const MemoryAddress address);
+    void runJMPabsIndirect(const AddressingResult addressingResult);
+    void runSTY(const AddressingResult addressingResult);
+    void runLDY(const AddressingResult addressingResult);
+    void runCPY(const AddressingResult addressingResult);
+    void runCPX(const AddressingResult addressingResult);
 };
 
 #endif  // SRC_C6502_HPP
