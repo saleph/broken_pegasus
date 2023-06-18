@@ -10,6 +10,7 @@
 #include "C6502.hpp"
 
 static const bool DONT_CARE_ABOUT_PAGE_BOUNDARY_CROSSING = false;
+const auto STACK_PAGE = 0b0001'0000u;
 
 C6502::C6502(IClock& clock, const RAM& memory)
     : clock{clock}, memory{memory} {
@@ -121,12 +122,33 @@ void C6502::runNextInstruction() {
 }
 
 void C6502::runBRK() {
+    // TODO
     spdlog::trace("BRK");
     reg.B = true;
 }
 
 void C6502::runJSR() {
     spdlog::trace("JSR");
+    const auto newAddressLow = accessMemory(reg.PC++);
+    tick(); // store ADL
+    const auto oldAddressHigh = static_cast<uint8_t>((reg.PC & 0xFF00u) >> 8);
+    pushOnStack(oldAddressHigh);
+    const auto oldAddressLow = static_cast<uint8_t>(reg.PC & 0x00FFu);
+    pushOnStack(oldAddressLow);
+    const auto newAddressHigh = accessMemory(reg.PC++);
+    reg.PC = concatAddress(newAddressLow, newAddressHigh);
+}
+
+void C6502::pushOnStack(const uint8_t value) {
+    const auto address = STACK_PAGE | reg.SP;
+    --reg.SP;
+    accessMemory(address) = value;
+}
+
+uint8_t C6502::popFromStack() {
+    const auto address = STACK_PAGE | reg.SP;
+    ++reg.SP;
+    return accessMemory(address);
 }
 
 void C6502::runRTI() {

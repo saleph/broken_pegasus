@@ -123,6 +123,8 @@ class C6502 {
     void runDEX();
     void runNOP();
     void incrementRegister(uint8_t& reg);
+    void pushOnStack(const uint8_t value);
+    uint8_t popFromStack();
 
     void runBranchInstruction(const uint8_t opcode);
     void runConditionalJump(const bool flag, const bool expectedValueOfTheFlag);
