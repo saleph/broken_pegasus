@@ -94,7 +94,7 @@ class C6502 {
     uint16_t readTwoByteAddressAtLocation(const uint16_t address);
     uint16_t concatAddress(const uint16_t lowHalf, const uint16_t highHalf) const;
     DataAndCrossPageBoundariesCrossing getValueFrom(const AddressingResult addressingResult);
-    bool runNextInstruction();
+    void runNextInstruction();
 
     void runBRK();
     void runJSR();
@@ -122,6 +122,7 @@ class C6502 {
     void runTSX();
     void runDEX();
     void runNOP();
+    void incrementRegister(uint8_t& reg);
 
     void runBranchInstruction(const uint8_t opcode);
     void runConditionalJump(const bool flag, const bool expectedValueOfTheFlag);

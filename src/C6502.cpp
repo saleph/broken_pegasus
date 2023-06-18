@@ -53,10 +53,9 @@ const RAM& C6502::getMemory() const {
 
 void C6502::run() {
     spdlog::debug("Starting CPU");
-    resetRegisters();
     clock.start();
-    while (runNextInstruction()) {
-        ;
+    while (!reg.B) {
+        runNextInstruction();
     }
 }
 
@@ -69,46 +68,44 @@ uint8_t& C6502::accessMemory(const uint16_t address) {
     return memory[address];
 }
 
-bool C6502::runNextInstruction() {
-    static const auto RETURN_FROM_BRK = false;
-    static const auto RETURN_FROM_NON_BRK = true;
+void C6502::runNextInstruction() {
     // https://llx.com/Neil/a2/opcodes.html
     const auto opcode = accessMemory(reg.PC);
     ++reg.PC;
     switch (opcode) {
-        case 0x00: runBRK(); return RETURN_FROM_BRK;
-        case 0x20: runJSR(); return RETURN_FROM_NON_BRK;
-        case 0x40: runRTI(); return RETURN_FROM_NON_BRK;
-        case 0x60: runRTS(); return RETURN_FROM_NON_BRK;
+        case 0x00: runBRK(); return;
+        case 0x20: runJSR(); return;
+        case 0x40: runRTI(); return;
+        case 0x60: runRTS(); return; 
         // single byte instructions
-        case 0x08: runPHP(); return RETURN_FROM_NON_BRK;
-        case 0x28: runPLP(); return RETURN_FROM_NON_BRK;
-        case 0x48: runPHA(); return RETURN_FROM_NON_BRK;
-        case 0x68: runPLA(); return RETURN_FROM_NON_BRK;
-        case 0x88: runDEY(); return RETURN_FROM_NON_BRK;
-        case 0xA8: runTAY(); return RETURN_FROM_NON_BRK;
-        case 0xC8: runINY(); return RETURN_FROM_NON_BRK;
-        case 0xE8: runINX(); return RETURN_FROM_NON_BRK;
-        case 0x18: runCLC(); return RETURN_FROM_NON_BRK;
-        case 0x38: runSEC(); return RETURN_FROM_NON_BRK;
-        case 0x58: runCLI(); return RETURN_FROM_NON_BRK;
-        case 0x78: runSEI(); return RETURN_FROM_NON_BRK;
-        case 0x98: runTYA(); return RETURN_FROM_NON_BRK;
-        case 0xB8: runCLV(); return RETURN_FROM_NON_BRK;
-        case 0xD8: runCLD(); return RETURN_FROM_NON_BRK;
-        case 0xF8: runSED(); return RETURN_FROM_NON_BRK;
-        case 0x8A: runTXA(); return RETURN_FROM_NON_BRK;
-        case 0x9A: runTXS(); return RETURN_FROM_NON_BRK;
-        case 0xAA: runTAX(); return RETURN_FROM_NON_BRK;
-        case 0xBA: runTSX(); return RETURN_FROM_NON_BRK;
-        case 0xCA: runDEX(); return RETURN_FROM_NON_BRK;
-        case 0xEA: runNOP(); return RETURN_FROM_NON_BRK;
+        case 0x08: runPHP(); return;
+        case 0x28: runPLP(); return;
+        case 0x48: runPHA(); return;
+        case 0x68: runPLA(); return;
+        case 0x88: runDEY(); return;
+        case 0xA8: runTAY(); return;
+        case 0xC8: runINY(); return;
+        case 0xE8: runINX(); return;
+        case 0x18: runCLC(); return;
+        case 0x38: runSEC(); return;
+        case 0x58: runCLI(); return;
+        case 0x78: runSEI(); return;
+        case 0x98: runTYA(); return;
+        case 0xB8: runCLV(); return;
+        case 0xD8: runCLD(); return;
+        case 0xF8: runSED(); return;
+        case 0x8A: runTXA(); return;
+        case 0x9A: runTXS(); return;
+        case 0xAA: runTAX(); return;
+        case 0xBA: runTSX(); return;
+        case 0xCA: runDEX(); return;
+        case 0xEA: runNOP(); return;
         default:
             break;
     }
     if ((opcode & 0b0001'1111u) == 0b0001'0000u) {
         runBranchInstruction(opcode);
-        return RETURN_FROM_NON_BRK;
+        return;
     }
     switch (getInstuctionGroup(opcode)) {
         case 0b01: runGroupOneInstruction(opcode); break;
@@ -121,7 +118,6 @@ bool C6502::runNextInstruction() {
                 "(potentially 65816 instruction)", opcode, opcode));
             break;
     }
-    return RETURN_FROM_NON_BRK;
 }
 
 void C6502::runBRK() {
@@ -167,10 +163,17 @@ void C6502::runTAY() {
 
 void C6502::runINY() {
     spdlog::trace("INY");
+    incrementRegister(reg.Y);
+}
+
+void C6502::incrementRegister(uint8_t& reg) {
+    tick();
+    ++reg;
 }
 
 void C6502::runINX() {
     spdlog::trace("INX");
+    incrementRegister(reg.X);
 }
 
 void C6502::runCLC() {

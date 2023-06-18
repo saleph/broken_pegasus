@@ -41,6 +41,12 @@ MATCHER_P(RamMatcher, otherRam, "") {
     return theSame;
 }
 
+void PrintTo(const Registers& r, std::ostream* os) {
+    *os << std::format("A={:02x} X={:02x} Y={:02x} SP={:04x} PC={:04x} "
+        "Flags: C={:01x} Z={:01x} I={:01x} D={:01x} B={:01x} V={:01x} N={:01x}",
+        r.A, r.X, r.Y, r.SP, r.PC, r.C, r.Z, r.I, r.D, r.B, r.V, r.N);
+}
+
 // LDA #$01 # 2 ticks
 // STA $0200 # 4 ticks
 // LDA #$05 # 2 ticks
@@ -63,6 +69,7 @@ TEST_F(C6202TestFixture, shouldSimpleProgramWorkProperly) {
     Registers expectedRegs;
     expectedRegs.A = 0x08u;
     expectedRegs.PC = 0x0610u;
+    expectedRegs.B = true;
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
     EXPECT_EQ(19u, ticks);
 }
@@ -82,6 +89,7 @@ TEST_F(C6202TestFixture, shouldAbsoluteAddressingWorkCorrectly) {
     Registers expectedRegs;
     expectedRegs.A = 0x01u;
     expectedRegs.PC = 0x0606u;
+    expectedRegs.B = true;
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
 }
 
@@ -100,6 +108,7 @@ TEST_F(C6202TestFixture, shouldZeroPageAddressingWorkCorrectly) {
     Registers expectedRegs;
     expectedRegs.A = 0x01u;
     expectedRegs.PC = 0x0605u;
+    expectedRegs.B = true;
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
 }
 
@@ -120,6 +129,8 @@ TEST_F(C6202TestFixture, shouldZeroPageIndexedAddressingWorkCorrectly) {
     expectedRegs.A = 0xAAu;
     expectedRegs.X = 0x02;
     expectedRegs.PC = 0x0607u;
+    expectedRegs.B = true;
+    expectedRegs.N = true;
     EXPECT_EQ(expectedRegs, cpu.getRegisters());
 }
 
