@@ -70,17 +70,20 @@ uint8_t& C6502::accessMemory(const uint16_t address) {
 }
 
 bool C6502::runNextInstruction() {
+    static const auto RETURN_FROM_BRK = false;
+    static const auto RETURN_FROM_NON_BRK = true;
     // https://llx.com/Neil/a2/opcodes.html
     const auto opcode = accessMemory(reg.PC);
     ++reg.PC;
-    const auto isBrkInstruction = opcode == 0x00u;
-    if (isBrkInstruction) {
-        spdlog::trace("BRK met");
-        return false;
+    switch (opcode) {
+        case 0x00:
+            spdlog::trace("BRK met");
+            return RETURN_FROM_BRK;
+
     }
-    if (opcode & 0b0001'0000u) {
+    if ((opcode & 0b0001'1111u) == 0b0001'0000u) {
         runBranchInstruction(opcode);
-        return true;
+        return RETURN_FROM_NON_BRK;
     }
     switch (getInstuctionGroup(opcode)) {
         case 0b01: runGroupOneInstruction(opcode); break;
@@ -93,7 +96,7 @@ bool C6502::runNextInstruction() {
                 "(potentially 65816 instruction)", opcode, opcode));
             break;
     }
-    return true;
+    return RETURN_FROM_NON_BRK;
 }
 
 void C6502::runBranchInstruction(const uint8_t opcode) {
