@@ -52,7 +52,7 @@ const RAM& C6502::getMemory() const {
 }
 
 void C6502::run() {
-    spdlog::trace("Starting CPU");
+    spdlog::debug("Starting CPU");
     resetRegisters();
     clock.start();
     while (runNextInstruction()) {
@@ -76,10 +76,35 @@ bool C6502::runNextInstruction() {
     const auto opcode = accessMemory(reg.PC);
     ++reg.PC;
     switch (opcode) {
-        case 0x00:
-            spdlog::trace("BRK met");
-            return RETURN_FROM_BRK;
-
+        case 0x00: runBRK(); return RETURN_FROM_BRK;
+        case 0x20: runJSR(); return RETURN_FROM_NON_BRK;
+        case 0x40: runRTI(); return RETURN_FROM_NON_BRK;
+        case 0x60: runRTS(); return RETURN_FROM_NON_BRK;
+        // single byte instructions
+        case 0x08: runPHP(); return RETURN_FROM_NON_BRK;
+        case 0x28: runPLP(); return RETURN_FROM_NON_BRK;
+        case 0x48: runPHA(); return RETURN_FROM_NON_BRK;
+        case 0x68: runPLA(); return RETURN_FROM_NON_BRK;
+        case 0x88: runDEY(); return RETURN_FROM_NON_BRK;
+        case 0xA8: runTAY(); return RETURN_FROM_NON_BRK;
+        case 0xC8: runINY(); return RETURN_FROM_NON_BRK;
+        case 0xE8: runINX(); return RETURN_FROM_NON_BRK;
+        case 0x18: runCLC(); return RETURN_FROM_NON_BRK;
+        case 0x38: runSEC(); return RETURN_FROM_NON_BRK;
+        case 0x58: runCLI(); return RETURN_FROM_NON_BRK;
+        case 0x78: runSEI(); return RETURN_FROM_NON_BRK;
+        case 0x98: runTYA(); return RETURN_FROM_NON_BRK;
+        case 0xB8: runCLV(); return RETURN_FROM_NON_BRK;
+        case 0xD8: runCLD(); return RETURN_FROM_NON_BRK;
+        case 0xF8: runSED(); return RETURN_FROM_NON_BRK;
+        case 0x8A: runTXA(); return RETURN_FROM_NON_BRK;
+        case 0x9A: runTXS(); return RETURN_FROM_NON_BRK;
+        case 0xAA: runTAX(); return RETURN_FROM_NON_BRK;
+        case 0xBA: runTSX(); return RETURN_FROM_NON_BRK;
+        case 0xCA: runDEX(); return RETURN_FROM_NON_BRK;
+        case 0xEA: runNOP(); return RETURN_FROM_NON_BRK;
+        default:
+            break;
     }
     if ((opcode & 0b0001'1111u) == 0b0001'0000u) {
         runBranchInstruction(opcode);
@@ -97,6 +122,111 @@ bool C6502::runNextInstruction() {
             break;
     }
     return RETURN_FROM_NON_BRK;
+}
+
+void C6502::runBRK() {
+    spdlog::trace("BRK");
+    reg.B = true;
+}
+
+void C6502::runJSR() {
+    spdlog::trace("JSR");
+}
+
+void C6502::runRTI() {
+    spdlog::trace("RTI");
+}
+
+void C6502::runRTS() {
+    spdlog::trace("RTS");
+}
+
+void C6502::runPHP() {
+    spdlog::trace("PHP");
+}
+
+void C6502::runPLP() {
+    spdlog::trace("PLP");
+}
+
+void C6502::runPHA() {
+    spdlog::trace("PHA");
+}
+
+void C6502::runPLA() {
+    spdlog::trace("PLA");
+}
+
+void C6502::runDEY() {
+    spdlog::trace("DEY");
+}
+
+void C6502::runTAY() {
+    spdlog::trace("TAY");
+}
+
+void C6502::runINY() {
+    spdlog::trace("INY");
+}
+
+void C6502::runINX() {
+    spdlog::trace("INX");
+}
+
+void C6502::runCLC() {
+    spdlog::trace("CLC");
+}
+
+void C6502::runSEC() {
+    spdlog::trace("SEC");
+}
+
+void C6502::runCLI() {
+    spdlog::trace("CLI");
+}
+
+void C6502::runSEI() {
+    spdlog::trace("SEI");
+}
+
+void C6502::runTYA() {
+    spdlog::trace("TYA");
+}
+
+void C6502::runCLV() {
+    spdlog::trace("CLV");
+}
+
+void C6502::runCLD() {
+    spdlog::trace("CLD");
+}
+
+void C6502::runSED() {
+    spdlog::trace("SED");
+}
+
+void C6502::runTXA() {
+    spdlog::trace("TXA");
+}
+
+void C6502::runTXS() {
+    spdlog::trace("TXS");
+}
+
+void C6502::runTAX() {
+    spdlog::trace("TAX");
+}
+
+void C6502::runTSX() {
+    spdlog::trace("TSX");
+}
+
+void C6502::runDEX() {
+    spdlog::trace("DEX");
+}
+
+void C6502::runNOP() {
+    spdlog::trace("NOP");
 }
 
 void C6502::runBranchInstruction(const uint8_t opcode) {

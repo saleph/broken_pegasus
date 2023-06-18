@@ -96,6 +96,33 @@ class C6502 {
     DataAndCrossPageBoundariesCrossing getValueFrom(const AddressingResult addressingResult);
     bool runNextInstruction();
 
+    void runBRK();
+    void runJSR();
+    void runRTI();
+    void runRTS();
+    void runPHP();
+    void runPLP();
+    void runPHA();
+    void runPLA();
+    void runDEY();
+    void runTAY();
+    void runINY();
+    void runINX();
+    void runCLC();
+    void runSEC();
+    void runCLI();
+    void runSEI();
+    void runTYA();
+    void runCLV();
+    void runCLD();
+    void runSED();
+    void runTXA();
+    void runTXS();
+    void runTAX();
+    void runTSX();
+    void runDEX();
+    void runNOP();
+
     void runBranchInstruction(const uint8_t opcode);
     void runConditionalJump(const bool flag, const bool expectedValueOfTheFlag);
 
