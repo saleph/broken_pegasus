@@ -152,6 +152,7 @@ uint8_t C6502::popFromStack() {
 }
 
 void C6502::runRTI() {
+    // TODO
     spdlog::trace("RTI");
 }
 
@@ -172,10 +173,17 @@ void C6502::runRTS() {
 
 void C6502::runPHP() {
     spdlog::trace("PHP");
+    const auto discarded1 = accessMemory(reg.PC);
+    (void)discarded1;
+    pushOnStack(reg.flags);
 }
 
 void C6502::runPLP() {
     spdlog::trace("PLP");
+    const auto discarded1 = accessMemory(reg.PC);
+    (void)discarded1;
+    reg.flags = popFromStack();
+    tick();
 }
 
 void C6502::runPHA() {
@@ -198,10 +206,12 @@ void C6502::runPLA() {
 
 void C6502::runDEY() {
     spdlog::trace("DEY");
+    decrementRegister(reg.Y);
 }
 
 void C6502::runTAY() {
     spdlog::trace("TAY");
+    transferRegister(reg.A, reg.Y);
 }
 
 void C6502::runINY() {
@@ -214,6 +224,11 @@ void C6502::incrementRegister(uint8_t& reg) {
     ++reg;
 }
 
+void C6502::decrementRegister(uint8_t& reg) {
+    tick();
+    --reg;
+}
+
 void C6502::runINX() {
     spdlog::trace("INX");
     incrementRegister(reg.X);
@@ -221,58 +236,87 @@ void C6502::runINX() {
 
 void C6502::runCLC() {
     spdlog::trace("CLC");
+    tick();
+    reg.C = false;
 }
 
 void C6502::runSEC() {
     spdlog::trace("SEC");
+    tick();
+    reg.C = true;
 }
 
 void C6502::runCLI() {
     spdlog::trace("CLI");
+    tick();
+    reg.I = false;
 }
 
 void C6502::runSEI() {
     spdlog::trace("SEI");
+    tick();
+    reg.I = true;
 }
 
 void C6502::runTYA() {
     spdlog::trace("TYA");
+    transferRegister(reg.Y, reg.A);
 }
 
 void C6502::runCLV() {
     spdlog::trace("CLV");
+    tick();
+    reg.V = false;
 }
 
 void C6502::runCLD() {
     spdlog::trace("CLD");
+    tick();
+    reg.D = false;
 }
 
 void C6502::runSED() {
     spdlog::trace("SED");
+    tick();
+    reg.D = true;
 }
 
 void C6502::runTXA() {
     spdlog::trace("TXA");
+    transferRegister(reg.X, reg.A);
 }
 
 void C6502::runTXS() {
     spdlog::trace("TXS");
+    transferRegister(reg.X, reg.SP);
 }
 
 void C6502::runTAX() {
     spdlog::trace("TAX");
+    transferRegister(reg.A, reg.X);
+}
+
+void C6502::transferRegister(const uint8_t source, uint8_t& destination) {
+    const auto discarded1 = accessMemory(reg.PC);
+    (void)discarded1;
+    destination = source;
+    reg.N = getNegativeSignBit(destination);
+    reg.Z = getZeroFlag(destination);
 }
 
 void C6502::runTSX() {
     spdlog::trace("TSX");
+    transferRegister(reg.SP, reg.X);
 }
 
 void C6502::runDEX() {
     spdlog::trace("DEX");
+    decrementRegister(reg.X);
 }
 
 void C6502::runNOP() {
     spdlog::trace("NOP");
+    tick();
 }
 
 void C6502::runBranchInstruction(const uint8_t opcode) {

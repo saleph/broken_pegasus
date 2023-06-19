@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <vector>
+#include <bitset>
 #include <chrono>
 
 TEST(StupidTests, negationResult) {

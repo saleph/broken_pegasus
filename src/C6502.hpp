@@ -40,7 +40,7 @@ struct Registers {
             /// @brief negative
             bool N : 1;
         };
-        std::bitset<8> flags = 0b00100000;
+        uint8_t flags = 0b00100000;
     };
 
     constexpr bool operator==(const Registers &o) const {
@@ -123,8 +123,10 @@ class C6502 {
     void runDEX();
     void runNOP();
     void incrementRegister(uint8_t& reg);
+    void decrementRegister(uint8_t& reg);
     void pushOnStack(const uint8_t value);
     uint8_t popFromStack();
+    void transferRegister(const uint8_t source, uint8_t& destination);
 
     void runBranchInstruction(const uint8_t opcode);
     void runConditionalJump(const bool flag, const bool expectedValueOfTheFlag);
