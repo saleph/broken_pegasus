@@ -157,6 +157,17 @@ void C6502::runRTI() {
 
 void C6502::runRTS() {
     spdlog::trace("RTS");
+    const auto discarded1 = accessMemory(reg.PC++);
+    (void)discarded1;
+    const auto discarded2 = accessMemory(STACK_PAGE | reg.SP);
+    (void)discarded2;
+    const auto newPCLow = popFromStack();
+    const auto newPCHigh = popFromStack();
+    const auto discarded3 = accessMemory(reg.PC++);
+    (void)discarded3;
+    reg.PC = concatAddress(newPCLow, newPCHigh);
+    // fix PC after (-1) store during JSR
+    ++reg.PC;
 }
 
 void C6502::runPHP() {
@@ -169,10 +180,20 @@ void C6502::runPLP() {
 
 void C6502::runPHA() {
     spdlog::trace("PHA");
+    const auto discarded1 = accessMemory(reg.PC);
+    (void)discarded1;
+    pushOnStack(reg.A);
 }
 
 void C6502::runPLA() {
     spdlog::trace("PLA");
+    const auto discarded1 = accessMemory(reg.PC);
+    (void)discarded1;
+    const auto value = popFromStack();
+    reg.A = value;
+    tick();
+    reg.N = getNegativeSignBit(reg.A);
+    reg.Z = getZeroFlag(reg.A);
 }
 
 void C6502::runDEY() {
