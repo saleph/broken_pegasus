@@ -141,19 +141,27 @@ void C6502::runJSR() {
 
 void C6502::pushOnStack(const uint8_t value) {
     const auto address = STACK_PAGE | reg.SP;
-    --reg.SP;
     accessMemory(address) = value;
+    --reg.SP;
 }
 
 uint8_t C6502::popFromStack() {
-    const auto address = STACK_PAGE | reg.SP;
     ++reg.SP;
+    const auto address = STACK_PAGE | reg.SP;
     return accessMemory(address);
 }
 
 void C6502::runRTI() {
-    // TODO
     spdlog::trace("RTI");
+    const auto discarded = accessMemory(reg.PC);
+    (void)discarded;
+    const auto discardedStackByte = accessMemory(STACK_PAGE | reg.SP);
+    (void)discardedStackByte;
+    const auto newFlags = popFromStack();
+    const auto newPCLow = popFromStack();
+    const auto newPCHigh = popFromStack();
+    reg.PC = concatAddress(newPCLow, newPCHigh);
+    reg.flags = newFlags;
 }
 
 void C6502::runRTS() {
